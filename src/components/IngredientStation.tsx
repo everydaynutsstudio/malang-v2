@@ -40,9 +40,11 @@ export default function IngredientStation({ ingredient }: Props) {
   const controls   = useAnimation();
   const qty        = useIngredientQty(ingredient.id);
 
+  const isSoftOrderFulfilled = useGameStore(s => s.isSoftOrderFulfilled);
   const isActive  = cupState === 'IDLE' || cupState === 'FILLING';
   const maxed     = isMaxed(ingredient, qty);
-  const isHinted  = softOrder?.hintIngredientIds.includes(ingredient.id) ?? false;
+  // 조건 충족 시 glow 해제 (§6.4 step 4)
+  const isHinted  = !isSoftOrderFulfilled && (softOrder?.hintIngredientIds.includes(ingredient.id) ?? false);
 
   // §3.4: 탭 → highlight + bounce (필수 2가지)
   async function handleTap() {
