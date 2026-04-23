@@ -8,6 +8,7 @@ import TakeoutWindow from './TakeoutWindow';
 import SoftOrderBubble from './SoftOrderBubble';
 import ShakeGauge from './ShakeGauge';
 import RewardPopup from './RewardPopup';
+import TitleOverlay from './TitleOverlay';
 import { INGREDIENTS } from '../data/ingredients';
 import { useGameStore } from '../store/gameStore';
 
@@ -139,6 +140,7 @@ export default function Scene() {
         </div>
 
         <RewardPopup />
+        <TitleOverlay />
       </div>
     </div>
   );
