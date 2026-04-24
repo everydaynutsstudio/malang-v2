@@ -60,7 +60,7 @@ function BottomLayer({ ingredients }: { ingredients: CupIngredient[] }) {
   const layerItems = ingredients.filter(ci => INGREDIENTS_MAP[ci.ingredientId]?.layer === 'bottom');
 
   return (
-    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%', zIndex: 1 }}>
+    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%', zIndex: 1, background: 'transparent' }}>
       {layerItems.flatMap(ci => {
         const cfg = BOTTOM_CONFIG[ci.ingredientId];
         if (!cfg) return [];

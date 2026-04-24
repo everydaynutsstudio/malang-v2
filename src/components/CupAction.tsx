@@ -38,7 +38,7 @@ export default function CupAction() {
   const swipeHandlers = useSwipe({
     onSwipeDelta: (signedDelta) => {
       if (cupState === 'SHAKING') {
-        updateShakeGauge(signedDelta); // store 내부에서 Math.abs 처리
+        updateShakeGauge(signedDelta * 0.5); // 속도 절반, store 내부에서 Math.abs 처리
       }
     },
   });

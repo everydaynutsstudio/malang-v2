@@ -11,6 +11,7 @@ import RewardPopup from './RewardPopup';
 import TitleOverlay from './TitleOverlay';
 import { INGREDIENTS } from '../data/ingredients';
 import { useGameStore } from '../store/gameStore';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const bases         = INGREDIENTS.filter(i => i.layer === 'body');
 const bottomToppings = INGREDIENTS.filter(i => i.layer === 'bottom');
@@ -37,8 +38,9 @@ function Shelf({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export default function Scene() {
-  // serveCount를 Cup의 key로 사용 → 서빙 완료 후 리마운트 = 새 빈 컵 bounce-in
-  const serveCount = useGameStore(s => s.serveCount);
+  const serveCount  = useGameStore(s => s.serveCount);
+  const cupState    = useGameStore(s => s.cupState);
+  const clearCup    = useGameStore(s => s.clearCup);
 
   return (
     // 전체 뷰포트를 채우되, 내부는 9:16 비율로 센터링
@@ -103,7 +105,35 @@ export default function Scene() {
           {/* 컵 + 게이지 + 액션버튼 */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
             <ShakeGauge />
-            <Cup key={serveCount} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Cup key={serveCount} />
+              {/* FILLING 상태에서만 표시되는 리셋 버튼 */}
+              <AnimatePresence>
+                {cupState === 'FILLING' && (
+                  <motion.button
+                    key="clear-cup"
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+                    whileTap={{ scale: 0.88 }}
+                    onClick={clearCup}
+                    style={{
+                      width: 36, height: 36,
+                      borderRadius: '50%',
+                      background: 'rgba(255,80,80,0.15)',
+                      border: '1.5px solid rgba(255,80,80,0.35)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 16, cursor: 'pointer',
+                      color: 'rgba(255,120,120,0.9)',
+                      alignSelf: 'center',
+                    }}
+                  >
+                    🗑
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
             <CupAction />
           </div>
         </div>

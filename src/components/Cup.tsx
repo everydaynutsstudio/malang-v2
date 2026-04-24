@@ -116,7 +116,7 @@ export default function Cup() {
           zIndex: 0,
         }} />
 
-        {/* 레이어 컨테이너 — 내용물만 클리핑 */}
+        {/* 레이어 컨테이너 — bottom·body만 클리핑 */}
         <div style={{
           position: 'absolute',
           top: 2, left: 3, right: 3, bottom: 2,
@@ -125,10 +125,13 @@ export default function Cup() {
           clipPath: 'polygon(4% 0%, 96% 0%, 100% 100%, 0% 100%)',
           zIndex: 1,
         }}>
-          {/* §3.2 레이어 순서: bottom → body → top */}
           <CupLayer layer="bottom" ingredients={cupIngredients} />
-          <CupLayer layer="body"   ingredients={cupIngredients} liquidColor={liquidColor}  liquidLevel={liquidLevel} />
-          <CupLayer layer="top"    ingredients={cupIngredients} liquidLevel={liquidLevel} />
+          <CupLayer layer="body"   ingredients={cupIngredients} liquidColor={liquidColor} liquidLevel={liquidLevel} />
+        </div>
+
+        {/* top layer — 클리핑 컨테이너 밖: cream/syrup이 컵 위로 삐져나와야 함 */}
+        <div style={{ position: 'absolute', top: 2, left: 3, right: 3, bottom: 2, zIndex: 3, pointerEvents: 'none' }}>
+          <CupLayer layer="top" ingredients={cupIngredients} liquidLevel={liquidLevel} />
         </div>
 
         {/* 뚜껑 — READY_TO_SHAKE 이후 */}

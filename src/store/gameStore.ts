@@ -180,6 +180,8 @@ interface GameState {
   serveDrink: () => void;
 
   resetCup: () => void;
+  // FILLING 상태에서 컵 내용물 전체 초기화 → IDLE 복귀 (쓰레기통 버튼)
+  clearCup: () => void;
   rollSoftOrder: () => void;
   setCharacterPose: (pose: CharacterPose) => void;
 }
@@ -413,6 +415,23 @@ export const useGameStore = create<GameState>()(
           softOrder: null,
           isSoftOrderFulfilled: false,
           characterPose: 'idle',
+        });
+      },
+
+      // FILLING → IDLE: 쓰레기통 버튼으로 내용물 초기화 + 새 컵 리마운트
+      clearCup: () => {
+        const { cupState } = get();
+        if (cupState !== 'FILLING') return;
+        console.log('[Malang] 컵 초기화 (쓰레기통) → IDLE');
+        set({
+          cupState: 'IDLE',
+          cupIngredients: [],
+          cupLiquidColor: '#FFFFFF',
+          cupLiquidLevel: 0,
+          shakeGauge: 0,
+          isSoftOrderFulfilled: false,
+          characterPose: 'idle',
+          serveCount: get().serveCount + 1, // Cup 리마운트 → 새 빈 컵 bounce-in
         });
       },
 

@@ -1,10 +1,13 @@
 // §2.2 SHAKING 게이지 — swipe 누적 → 100% 달성 시 READY_TO_SERVE
 // §12: 게이지 표시, 위치 별도 결정 → 컵 위 배치
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../store/gameStore';
 
 const GAUGE_W = 140;
 const GAUGE_H = 14;
+// 🎉 달성 후 게이지가 사라지기 전 유지 시간
+const MILESTONE_HOLD_MS = 500;
 
 // 게이지 % → pink(0%) → orange(50%) → gold(100%) 색상 보간
 function gaugeColor(pct: number): string {
@@ -25,13 +28,26 @@ function milestone(pct: number): string | null {
 export default function ShakeGauge() {
   const cupState   = useGameStore(s => s.cupState);
   const shakeGauge = useGameStore(s => s.shakeGauge);
+  // 100% 달성 후 MILESTONE_HOLD_MS 동안 게이지를 유지시키는 플래그
+  const [holding, setHolding] = useState(false);
+
+  useEffect(() => {
+    if (shakeGauge >= 100) {
+      setHolding(true);
+      const t = setTimeout(() => setHolding(false), MILESTONE_HOLD_MS);
+      return () => clearTimeout(t);
+    }
+  }, [shakeGauge]);
+
+  // SHAKING 상태이거나, 100% 달성 후 hold 중일 때 표시
+  const visible = cupState === 'SHAKING' || holding;
 
   const color = gaugeColor(shakeGauge);
   const mark  = milestone(shakeGauge);
 
   return (
     <AnimatePresence>
-      {cupState === 'SHAKING' && (
+      {visible && (
         <motion.div
           key="gauge"
           initial={{ opacity: 0, scale: 0.8, y: 4 }}
