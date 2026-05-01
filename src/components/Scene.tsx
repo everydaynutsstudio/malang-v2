@@ -1,4 +1,7 @@
-// 아이소메트릭 카페 싱글 씬 — §5 레이아웃 기준 placeholder
+// 아이소메트릭 카페 싱글 씬 — absolute positioning 기반 레이아웃
+// 모든 UI 요소는 9:16 컨테이너 기준 left/top % + translate(-50%,-50%) 중심점 배치
+// 위치 조정은 src/config/layout.ts 에서만
+import { motion, AnimatePresence } from 'framer-motion';
 import CoinHUD from './CoinHUD';
 import Character from './Character';
 import Cup from './Cup';
@@ -9,41 +12,32 @@ import SoftOrderBubble from './SoftOrderBubble';
 import ShakeGauge from './ShakeGauge';
 import RewardPopup from './RewardPopup';
 import TitleOverlay from './TitleOverlay';
-import { INGREDIENTS } from '../data/ingredients';
+import { INGREDIENTS_MAP } from '../data/ingredients';
 import { useGameStore } from '../store/gameStore';
-import { motion, AnimatePresence } from 'framer-motion';
+import { LAYOUT } from '../config/layout';
+import bgCafe from '../assets/bg_cafe.png';
 
-const bases         = INGREDIENTS.filter(i => i.layer === 'body');
-const bottomToppings = INGREDIENTS.filter(i => i.layer === 'bottom');
-const topToppings   = INGREDIENTS.filter(i => i.layer === 'top');
-
-// ── Shelf panel (재료 섹션 묶음) ──────────────────────────────────────────
-function Shelf({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{
-      width: '100%',
-      padding: '8px 16px',
-      background: 'rgba(255,255,255,0.05)',
-      borderRadius: 12,
-      border: '1px solid rgba(255,255,255,0.08)',
-    }}>
-      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 6, letterSpacing: 1 }}>
-        {label}
-      </div>
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-        {children}
-      </div>
-    </div>
-  );
+// absolute 배치 헬퍼 — layout.ts의 { x, y, scale } 을 style로 변환
+function pos(cfg: { x: number; y: number; scale: number }) {
+  return {
+    position: 'absolute' as const,
+    left:      `${cfg.x}%`,
+    top:       `${cfg.y}%`,
+    transform: `translate(-50%, -50%) scale(${cfg.scale})`,
+    transformOrigin: 'center center',
+  };
 }
 
+// layout.ts ingredients에 정의된 id 목록 (순서 = 렌더 순서)
+const INGREDIENT_IDS = Object.keys(LAYOUT.ingredients) as (keyof typeof LAYOUT.ingredients)[];
+
 export default function Scene() {
-  const serveCount  = useGameStore(s => s.serveCount);
-  const cupState    = useGameStore(s => s.cupState);
-  const clearCup    = useGameStore(s => s.clearCup);
+  const serveCount = useGameStore(s => s.serveCount);
+  const cupState   = useGameStore(s => s.cupState);
+  const clearCup   = useGameStore(s => s.clearCup);
 
   return (
-    // 전체 뷰포트를 채우되, 내부는 9:16 비율로 센터링
+    // 뷰포트 센터링 — 바깥 래퍼만 flex 유지 (씬 배치용, UI 레이아웃 아님)
     <div style={{
       width: '100vw',
       height: '100dvh',
@@ -52,125 +46,117 @@ export default function Scene() {
       justifyContent: 'center',
       background: '#0d0916',
     }}>
-      {/* 9:16 게임 영역 */}
+      {/* 9:16 게임 컨테이너 — 모든 UI의 position: absolute 기준점 */}
       <div style={{
         position: 'relative',
-        width:  'min(100vw, calc(100dvh * 9 / 16))',
-        height: 'min(100dvh, calc(100vw * 16 / 9))',
-        background: 'linear-gradient(175deg, #2d1b69 0%, #1a0a35 50%, #0d0916 100%)',
+        width:    'min(100vw, calc(100dvh * 9 / 16))',
+        height:   'min(100dvh, calc(100vw * 16 / 9))',
         overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
         fontFamily: '"Segoe UI", sans-serif',
       }}>
 
-        {/* ── HUD ── */}
+        {/* ── 배경 이미지 ── */}
+        <img
+          src={bgCafe}
+          alt="" aria-hidden="true"
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%',
+            objectFit: 'cover', objectPosition: 'center',
+            zIndex: 0,
+            userSelect: 'none', pointerEvents: 'none',
+          }}
+        />
+
+        {/* ── HUD — 자체 position:absolute 보유, 직접 마운트 ── */}
         <CoinHUD />
 
-        {/* ── 재료 선반 영역 (상단 55%) ── */}
-        <div style={{
-          flex: '0 0 auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          padding: '52px 12px 8px',
-        }}>
-          <Shelf label="TOPPING — BOTTOM">
-            {bottomToppings.map(i => <IngredientStation key={i.id} ingredient={i} />)}
-          </Shelf>
-
-          <Shelf label="TOPPING — TOP">
-            {topToppings.map(i => <IngredientStation key={i.id} ingredient={i} />)}
-          </Shelf>
-
-          <Shelf label="BASE">
-            {bases.map(i => <IngredientStation key={i.id} ingredient={i} />)}
-          </Shelf>
-        </div>
-
-        {/* ── 작업대 (캐릭터 + 컵) ── */}
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'flex-end',
-          justifyContent: 'center',
-          gap: 20,
-          padding: '0 16px 16px',
-          // 카운터 배경 라인
-          borderTop: '1px solid rgba(255,255,255,0.06)',
-          background: 'linear-gradient(0deg, rgba(255,255,255,0.03) 0%, transparent 100%)',
-        }}>
-          <Character />
-
-          {/* 컵 + 게이지 + 액션버튼 */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            <ShakeGauge />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Cup key={serveCount} />
-              {/* FILLING 상태에서만 표시되는 리셋 버튼 */}
-              <AnimatePresence>
-                {cupState === 'FILLING' && (
-                  <motion.button
-                    key="clear-cup"
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0, opacity: 0 }}
-                    transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-                    whileTap={{ scale: 0.88 }}
-                    onClick={clearCup}
-                    style={{
-                      width: 36, height: 36,
-                      borderRadius: '50%',
-                      background: 'rgba(255,80,80,0.15)',
-                      border: '1.5px solid rgba(255,80,80,0.35)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 16, cursor: 'pointer',
-                      color: 'rgba(255,120,120,0.9)',
-                      alignSelf: 'center',
-                    }}
-                  >
-                    🗑
-                  </motion.button>
-                )}
-              </AnimatePresence>
+        {/* ── 재료통 — 개별 좌표 배치 ── */}
+        {INGREDIENT_IDS.map(id => {
+          const ingredient = INGREDIENTS_MAP[id];
+          if (!ingredient) return null;
+          return (
+            <div key={id} style={{ ...pos(LAYOUT.ingredients[id]), zIndex: 5 }}>
+              <IngredientStation ingredient={ingredient} />
             </div>
-            <CupAction />
-          </div>
+          );
+        })}
+
+        {/* ── 캐릭터 ── */}
+        <div style={{ ...pos(LAYOUT.character), zIndex: 6 }}>
+          <Character />
         </div>
 
-        {/* ── 하단 바 (⚙️ | 픽업대) ── */}
-        <div style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 80,
-          display: 'flex',
-          alignItems: 'flex-end',
-          justifyContent: 'space-between',
-          padding: '0 16px 12px',
-          pointerEvents: 'none',
-        }}>
-          {/* Settings placeholder */}
+        {/* ── ShakeGauge ── */}
+        <div style={{ ...pos(LAYOUT.shakeGauge), zIndex: 7 }}>
+          <ShakeGauge />
+        </div>
+
+        {/* ── 컵 ── */}
+        <div style={{ ...pos(LAYOUT.cup), zIndex: 8 }}>
+          <Cup key={serveCount} />
+        </div>
+
+        {/* ── 컵 리셋 버튼 (FILLING 상태) ── */}
+        <div style={{ ...pos(LAYOUT.clearCupBtn), zIndex: 9 }}>
+          <AnimatePresence>
+            {cupState === 'FILLING' && (
+              <motion.button
+                key="clear-cup"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+                whileTap={{ scale: 0.88 }}
+                onClick={clearCup}
+                style={{
+                  width: 36, height: 36,
+                  borderRadius: '50%',
+                  background: 'rgba(255,80,80,0.15)',
+                  border: '1.5px solid rgba(255,80,80,0.35)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 16, cursor: 'pointer',
+                  color: 'rgba(255,120,120,0.9)',
+                }}
+              >
+                🗑
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ── CupAction (DONE / SHAKE / SWIPE / DRAG) ── */}
+        <div style={{ ...pos(LAYOUT.cupAction), zIndex: 9 }}>
+          <CupAction />
+        </div>
+
+        {/* ── 설정 버튼 ── */}
+        <div style={{ ...pos(LAYOUT.settingsBtn), zIndex: 6 }}>
           <div style={{
             width: 36, height: 36,
             borderRadius: '50%',
             background: 'rgba(255,255,255,0.1)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, cursor: 'pointer', pointerEvents: 'auto',
+            fontSize: 18, cursor: 'pointer',
           }}>
             ⚙️
           </div>
-
-          {/* 픽업대 + Soft Order */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, pointerEvents: 'auto' }}>
-            <SoftOrderBubble />
-            <TakeoutWindow />
-          </div>
         </div>
 
+        {/* ── Soft Order 말풍선 ── */}
+        <div style={{ ...pos(LAYOUT.softOrder), zIndex: 7 }}>
+          <SoftOrderBubble />
+        </div>
+
+        {/* ── 픽업대 ── */}
+        <div style={{ ...pos(LAYOUT.takeoutWindow), zIndex: 6 }}>
+          <TakeoutWindow />
+        </div>
+
+        {/* ── 전역 오버레이 (z 최상위) ── */}
         <RewardPopup />
         <TitleOverlay />
+
       </div>
     </div>
   );

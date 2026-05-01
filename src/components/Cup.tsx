@@ -5,11 +5,17 @@ import { useEffect } from 'react';
 import { motion, useAnimation, type PanInfo } from 'framer-motion';
 import { useGameStore } from '../store/gameStore';
 import { pickupZone } from '../store/pickupZone';
+import { LAYOUT } from '../config/layout';
 import CupLayer from './CupLayer';
+import cupEmptyImg from '../assets/cup_empty.png';
+import cupLidImg   from '../assets/cup_lid.png';
 
-const CUP_W = 90;
-const CUP_H = 150;
-const HIT_PADDING = 52; // 픽업대 drop 판정 여유 반경 (px)
+const CUP_W = LAYOUT.cup_base_w;  // scale 1.0 기준 너비
+const CUP_RATIO = 216 / 279;      // cup_empty.png 원본 비율 (216×279)
+const HIT_PADDING = 52;
+
+// 내용물 클리핑 영역 — 컵 이미지 내부에 맞춤 (이미지 교체 시 이 값만 조정)
+const FILL_INSET = { top: 8, left: 8, right: 8, bottom: 6 };
 
 export default function Cup() {
   const cupState       = useGameStore(s => s.cupState);
@@ -23,30 +29,26 @@ export default function Cup() {
   const isDraggable = cupState === 'READY_TO_SERVE';
   const isShaking   = cupState === 'SHAKING';
   const isServing   = cupState === 'SERVING';
+  const hasLid      = cupState === 'READY_TO_SHAKE' || cupState === 'SHAKING' || cupState === 'READY_TO_SERVE';
 
-  // §12: 게이지 비례 진동 파라미터
   const shakeDuration = 0.20 - (shakeGauge / 100) * 0.11;
   const shakeAmp      = 8   + (shakeGauge / 100) * 6;
 
-  // ── 새 컵 입장 (mount마다 = serveCount key 변경 시 리마운트)
   useEffect(() => {
     controls.start({
       x: 0, y: 0, scale: 1, opacity: 1,
       transition: { type: 'spring', stiffness: 380, damping: 26 },
     });
-  }, []); // controls는 stable ref — 의도적 빈 deps
+  }, []); // stable ref — 의도적 빈 deps
 
-  // ── §12 서빙: scale down + fade (duration: 0.3)
   useEffect(() => {
     if (!isServing) return;
     controls.start({
-      scale: 0.1,
-      opacity: 0,
+      scale: 0.1, opacity: 0,
       transition: { duration: 0.28, ease: 'easeIn' },
     });
-  }, [isServing]); // controls는 stable ref
+  }, [isServing]); // stable ref
 
-  // ── 드래그 종료: 픽업대 hit 판정
   function handleDragEnd(_: PointerEvent, info: PanInfo) {
     const bounds = pickupZone.getBounds();
     const { point } = info;
@@ -58,19 +60,13 @@ export default function Cup() {
       point.y <= bounds.bottom + HIT_PADDING;
 
     if (hit) {
-      // 서빙 성공 → isServing useEffect가 fade 처리
       serveDrink();
     } else {
-      // 빗나감 → 원위치 스냅백
-      controls.start({
-        x: 0, y: 0,
-        transition: { type: 'spring', stiffness: 420, damping: 30 },
-      });
+      controls.start({ x: 0, y: 0, transition: { type: 'spring', stiffness: 420, damping: 30 } });
     }
   }
 
   return (
-    // ── Outer: drag 위치 · 서빙 fade · 입장 애니메이션
     <motion.div
       drag={isDraggable}
       dragMomentum={false}
@@ -80,9 +76,10 @@ export default function Cup() {
       animate={controls}
       initial={{ scale: 0.6, opacity: 0, y: 14 }}
       style={{
-        position: 'relative',
-        width:  CUP_W,
-        height: CUP_H,
+        // width 고정 + aspect-ratio로 높이 자동 결정 → absolute 자식 기준 확보
+        width:       CUP_W,
+        aspectRatio: `${CUP_RATIO}`,
+        height:      'auto',
         cursor: isDraggable ? 'grab' : 'default',
         touchAction: 'none',
         userSelect: 'none',
@@ -90,69 +87,70 @@ export default function Cup() {
         zIndex: isDraggable ? 20 : 1,
       }}
     >
-      {/* ── Inner: SHAKING 좌우 회전 */}
+      {/* Inner: SHAKING 좌우 회전 */}
       <motion.div
-        animate={isShaking
-          ? { rotate: [-shakeAmp, shakeAmp] }
-          : { rotate: 0 }
-        }
+        animate={isShaking ? { rotate: [-shakeAmp, shakeAmp] } : { rotate: 0 }}
         transition={isShaking
           ? { repeat: Infinity, repeatType: 'mirror', duration: shakeDuration, ease: 'easeInOut' }
           : { type: 'spring', stiffness: 300, damping: 20 }
         }
         style={{ width: '100%', height: '100%', position: 'relative' }}
       >
-
-        {/* 컵 외곽 — 버블티 실루엣 placeholder */}
+        {/* 내용물 클리핑 (bottom + body) */}
         <div style={{
           position: 'absolute',
-          inset: 0,
-          borderRadius: '6px 6px 18px 18px',
-          border: '2.5px solid rgba(255,255,255,0.35)',
-          background: 'rgba(255,255,255,0.05)',
-          backdropFilter: 'blur(2px)',
-          clipPath: 'polygon(4% 0%, 96% 0%, 100% 100%, 0% 100%)',
+          top: FILL_INSET.top, left: FILL_INSET.left,
+          right: FILL_INSET.right, bottom: FILL_INSET.bottom,
           overflow: 'hidden',
-          zIndex: 0,
-        }} />
-
-        {/* 레이어 컨테이너 — bottom·body만 클리핑 */}
-        <div style={{
-          position: 'absolute',
-          top: 2, left: 3, right: 3, bottom: 2,
-          borderRadius: '4px 4px 16px 16px',
-          overflow: 'hidden',
-          clipPath: 'polygon(4% 0%, 96% 0%, 100% 100%, 0% 100%)',
+          borderRadius: '2px 2px 14px 14px',
           zIndex: 1,
         }}>
           <CupLayer layer="bottom" ingredients={cupIngredients} />
           <CupLayer layer="body"   ingredients={cupIngredients} liquidColor={liquidColor} liquidLevel={liquidLevel} />
         </div>
 
-        {/* top layer — 클리핑 컨테이너 밖: cream/syrup이 컵 위로 삐져나와야 함 */}
-        <div style={{ position: 'absolute', top: 2, left: 3, right: 3, bottom: 2, zIndex: 3, pointerEvents: 'none' }}>
+        {/* top layer — 클리핑 밖: cream/syrup이 컵 위로 삐져나와야 함 */}
+        <div style={{
+          position: 'absolute',
+          top: FILL_INSET.top, left: FILL_INSET.left,
+          right: FILL_INSET.right, bottom: FILL_INSET.bottom,
+          zIndex: 3, pointerEvents: 'none',
+        }}>
           <CupLayer layer="top" ingredients={cupIngredients} liquidLevel={liquidLevel} />
         </div>
 
-        {/* 뚜껑 — READY_TO_SHAKE 이후 */}
-        {(cupState === 'READY_TO_SHAKE' || cupState === 'SHAKING' || cupState === 'READY_TO_SERVE') && (
-          <motion.div
-            initial={{ y: -20, opacity: 0 }}
+        {/* 컵 이미지 — 내용물 위에 올려 컵 테두리가 내용물을 가림 */}
+        <img
+          src={cupEmptyImg}
+          alt="" aria-hidden="true"
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%',
+            objectFit: 'fill', zIndex: 2,
+            pointerEvents: 'none', userSelect: 'none',
+          }}
+        />
+
+        {/* 뚜껑 */}
+        {hasLid && (
+          <motion.img
+            src={cupLidImg}
+            alt="" aria-hidden="true"
+            key="lid"
+            initial={{ y: -40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
             style={{
               position: 'absolute',
-              top: -10, left: -4, right: -4,
-              height: 14,
-              borderRadius: '8px 8px 2px 2px',
-              background: 'rgba(255,255,255,0.25)',
-              border: '2px solid rgba(255,255,255,0.4)',
-              zIndex: 2,
+              top: -12, left: -6, right: -6,
+              width: 'calc(100% + 12px)',
+              objectFit: 'fill', zIndex: 4,
+              pointerEvents: 'none', userSelect: 'none',
             }}
           />
         )}
 
-        {/* 빨대 — READY_TO_SERVE */}
+        {/* 빨대 */}
         {cupState === 'READY_TO_SERVE' && (
           <motion.div
             initial={{ y: -30, opacity: 0 }}
@@ -164,11 +162,10 @@ export default function Cup() {
               width: 6, height: 50,
               borderRadius: 3,
               background: 'linear-gradient(180deg, #FF9DD0, #FF6BAE)',
-              zIndex: 3,
+              zIndex: 5,
             }}
           />
         )}
-
       </motion.div>
     </motion.div>
   );
